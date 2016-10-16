@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func usage() {
@@ -16,6 +18,7 @@ func usage() {
 
 func fatal(message string) {
 	fmt.Fprintf(os.Stderr, "error: %s\n\n", message)
+	usage()
 }
 
 /* Expand a port range into a slice of ports to bind to */
@@ -53,6 +56,17 @@ func expand(portrange string) ([]int, error) {
 	return result, nil
 }
 
+func acceptAndPrint(ln net.Listener) {
+	conn, err := ln.Accept()
+	if err != nil {
+		fatal(err.Error())
+	}
+
+	addr := conn.LocalAddr().String()
+
+	fmt.Printf("Received connection on %s\n", addr)
+}
+
 func main() {
 	flag.Usage = usage
 
@@ -67,6 +81,36 @@ func main() {
 		os.Exit(1)
 	}
 
+	ports, err := expand(args[0])
+	if err != nil {
+		fatal(err.Error())
+	}
+
 	if *udp {
+	}
+
+	for _, port := range ports {
+		var ln net.Listener
+		/*
+			if *udp {
+				addr, err := net.ResolveUDPAddr("udp", ":"+string(port))
+				if err != nil {
+					fatal(err.Error())
+				}
+				ln, err = net.ListenUDP("udp", addr)
+			} else {
+				ln, err = net.Listen("tcp", ":" + string(port))
+			}
+		*/
+		ln, err = net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			fatal(err.Error())
+		}
+
+		go acceptAndPrint(ln)
+	}
+
+	for {
+		time.Sleep(time.Second)
 	}
 }
