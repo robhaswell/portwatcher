@@ -56,11 +56,25 @@ func expand(portrange string) ([]int, error) {
 	return result, nil
 }
 
-func acceptAndPrint(ln net.Listener) {
+func acceptTCPAndPrint(ln net.Listener) {
 	conn, err := ln.Accept()
 	if err != nil {
 		fatal(err.Error())
 	}
+
+	addr := conn.LocalAddr().String()
+
+	fmt.Printf("Received connection on %s\n", addr)
+}
+
+func listenUDPAndPrint(laddr *net.UDPAddr) {
+	conn, err := net.ListenUDP("udp", laddr)
+	if err != nil {
+		fatal(err.Error())
+	}
+	// TODO read from the connection
+	b := make([]byte, 1)
+	conn.ReadFromUDP(b)
 
 	addr := conn.LocalAddr().String()
 
@@ -86,28 +100,23 @@ func main() {
 		fatal(err.Error())
 	}
 
-	if *udp {
-	}
-
 	for _, port := range ports {
-		var ln net.Listener
-		/*
-			if *udp {
-				addr, err := net.ResolveUDPAddr("udp", ":"+string(port))
-				if err != nil {
-					fatal(err.Error())
-				}
-				ln, err = net.ListenUDP("udp", addr)
-			} else {
-				ln, err = net.Listen("tcp", ":" + string(port))
+		if *udp {
+			addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", port))
+			if err != nil {
+				fatal(err.Error())
 			}
-		*/
-		ln, err = net.Listen("tcp", fmt.Sprintf(":%d", port))
-		if err != nil {
-			fatal(err.Error())
-		}
 
-		go acceptAndPrint(ln)
+			go listenUDPAndPrint(addr)
+		} else {
+			var ln net.Listener
+			ln, err = net.Listen("tcp", fmt.Sprintf(":%d", port))
+			if err != nil {
+				fatal(err.Error())
+			}
+
+			go acceptTCPAndPrint(ln)
+		}
 	}
 
 	for {
