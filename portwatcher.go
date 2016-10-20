@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func usage() {
@@ -56,6 +55,8 @@ func expand(portrange string) ([]int, error) {
 	return result, nil
 }
 
+var cConnections chan(string)
+
 func acceptTCPAndPrint(ln net.Listener) {
 	conn, err := ln.Accept()
 	if err != nil {
@@ -63,8 +64,9 @@ func acceptTCPAndPrint(ln net.Listener) {
 	}
 
 	addr := conn.LocalAddr().String()
+	_, port, err := net.SplitHostPort(addr)
 
-	fmt.Printf("Received connection on %s\n", addr)
+	cConnections <- port
 }
 
 func listenUDPAndPrint(laddr *net.UDPAddr) {
@@ -77,11 +79,13 @@ func listenUDPAndPrint(laddr *net.UDPAddr) {
 	conn.ReadFromUDP(b)
 
 	addr := conn.LocalAddr().String()
+	_, port, err := net.SplitHostPort(addr)
 
-	fmt.Printf("Received connection on %s\n", addr)
+	cConnections <- port
 }
 
 func main() {
+
 	flag.Usage = usage
 
 	var udp = flag.Bool("udp", false, "Listen on UDP instead of TCP")
@@ -99,6 +103,8 @@ func main() {
 	if err != nil {
 		fatal(err.Error())
 	}
+
+	cConnections = make(chan string)
 
 	for _, port := range ports {
 		if *udp {
@@ -119,7 +125,14 @@ func main() {
 		}
 	}
 
-	for {
-		time.Sleep(time.Second)
+	var received []string
+
+	for rPort := range cConnections {
+		fmt.Printf("Received connection on %s\n", rPort)
+		received = append(received, rPort)
+		if len(received) == len(ports) {
+			fmt.Print("All ports have received connections.\n")
+			os.Exit(0)
+		}
 	}
 }
