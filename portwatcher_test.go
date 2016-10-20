@@ -49,3 +49,10 @@ func TestErrors(t *testing.T) {
 		t.Fatal("No error")
 	}
 }
+
+func TestRemoveDups(t *testing.T) {
+	result, _ := expand("100,100")
+	if len(result) > 1 {
+		t.Fatal("Duplicates found")
+	}
+}
